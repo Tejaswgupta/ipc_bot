@@ -84,7 +84,7 @@ async def on_chat_start():
             json_data['section_name'] = f"{remove_between_periods(json_data['section_name'])} of {act['act_name'].replace(',','')}"
             d = json_data['section_name'] + ' : ' + json_data['text']
             data.append({
-                'name':  json_data['section_name'],
+                'name': json_data['section_name'],
                 'content': preprocess_text(d),
                 # 'section_name': json_data['section_name'],
             })
@@ -98,16 +98,25 @@ async def on_chat_start():
                             'name': s['name']}) for s in process(row[2])]
 
     with open('bsa.json', 'r') as bsa:
-        bsa_loader = [Document(page_content=f"{s['section_name']} of Bharatiya Sakshya Adhiniyam(BSA): {s['content']}", metadata={
-            'name': f"{s['section_name']} of Bharatiya Sakshya Adhiniyam(BSA)"}) for s in json.load(bsa)]
+        bsa_loader = [
+            Document(
+                page_content=f"{s['section_name']} of Bharatiya Sakshya Adhiniyam(BSA): {s['content']}",
+                metadata={
+                    'name': f"{s['section_name']} of Bharatiya Sakshya Adhiniyam(BSA)"}) for s in json.load(bsa)]
 
     with open('bns.json', 'r') as bns:
-        bns_loader = [Document(page_content=f"{s['section_name']} of Bharatiya Nyaya Sanhita(BNS): {s['content']}", metadata={
-            'name': f"{s['section_name']} of Bharatiya Nyaya Sanhita(BNS)"}) for s in json.load(bns)]
+        bns_loader = [
+            Document(
+                page_content=f"{s['section_name']} of Bharatiya Nyaya Sanhita(BNS): {s['content']}",
+                metadata={
+                    'name': f"{s['section_name']} of Bharatiya Nyaya Sanhita(BNS)"}) for s in json.load(bns)]
 
     with open('bnss.json', 'r') as bnss:
-        bnss_loader = [Document(page_content=f"{s['section_name']} of Bharatiya Nagarik Suraksha Sanhita(BNSS): {s['content']}", metadata={
-            'name': f"{s['section_name']} of Bharatiya Nagarik Suraksha Sanhita(BNSS)"}) for s in json.load(bnss)]
+        bnss_loader = [
+            Document(
+                page_content=f"{s['section_name']} of Bharatiya Nagarik Suraksha Sanhita(BNSS): {s['content']}",
+                metadata={
+                    'name': f"{s['section_name']} of Bharatiya Nagarik Suraksha Sanhita(BNSS)"}) for s in json.load(bnss)]
 
     model_name = "BAAI/bge-base-en-v1.5"
     encode_kwargs = {'normalize_embeddings': True}
@@ -175,12 +184,12 @@ async def on_chat_start():
         collection_name="bnss",
     )
 
-    prefix = """You are Votum, an expert legal assistant with extensive knowledge about Indian law. Your task is to respond with the description of the section if provided with a section number OR respond with section number if given a description. 
+    prefix = """You are Votum, an expert legal assistant with extensive knowledge about Indian law. Your task is to respond with the description of the section if provided with a section number OR respond with section number if given a description.
 Remember the following while answering any query:
 - The Bharatiya Sakshya Adhiniyam (BSA) will be replacing The Indian Evidence Act (IEA).
 - The Bharatiya Nyaya Sanhita (BNS) will be replacing The Indian Penal Code (IPC).
 - The Bharatiya Nagarik Suraksha Sanhita Sanhita(BNSS) will be replacing the Code of Criminal Procedure (CrPC).
-Whenever asked regarding about a section of an act that has been replaced , first lookup the defination using it's respective tool , followed by searching the returned description with the newer alternative's tool. 
+Whenever asked regarding about a section of an act that has been replaced , first lookup the defination using it's respective tool , followed by searching the returned description with the newer alternative's tool.
 Steps overview:
 - Query: IPC Section 289
 - Use search_ipc with input IPC Section 289
@@ -194,6 +203,7 @@ You have access to the following tools:
         api_key="4e19bb52d70748ec89a517a52303243c",
         azure_endpoint="https://votum.openai.azure.com/",
         api_version="2023-07-01-preview",
+        streaming=True,
     )
 
     @tool('search_ipc')
@@ -302,5 +312,5 @@ async def main(message: cl.Message):
 
     agent = cl.user_session.get("agent")  # type: AgentExecutor
 
-    cb = cl.AsyncLangchainCallbackHandler(stream_final_answer=True)
-    res = await cl.make_async(agent.run)(message.content, callbacks=[cb])
+    cb = cl.LangchainCallbackHandler(stream_final_answer=True)
+    await cl.make_async(agent.run)(message.content, callbacks=[cb])
