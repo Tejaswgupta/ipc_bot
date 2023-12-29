@@ -3,6 +3,7 @@ import re
 
 import asyncpg
 import chainlit as cl
+import qdrant_client
 from langchain.agents import (AgentExecutor, AgentType, Tool, ZeroShotAgent,
                               initialize_agent)
 from langchain.agents.agent_toolkits import (
@@ -35,33 +36,37 @@ from pydantic import BaseModel, Field
 
 @cl.on_chat_start
 async def on_chat_start():
+    client = qdrant_client.QdrantClient(
+        url="https://70dd04d7-f233-4954-8e4d-54c848c8d13b.us-east4-0.gcp.cloud.qdrant.io:6333",
+        api_key="xVLVqK38Xf5HYBM4GaKrGy0Csorj1Gc9YJdqn6DARiXD6ES5SuMrfA",
+    )
 
-    conn = await asyncpg.connect(host="legalscraperserver.postgres.database.azure.com",
-                                 database="postgres",
-                                 user="tejasw",
-                                 password="Password1234",
-                                 port=5432,)
-    row = await conn.fetch(
-        '''SELECT sections, act_name, text
-    FROM acts
-    WHERE sections IS NOT NULL
-    AND(act_name LIKE '%The Indian Penal Code, 1860%' OR act_name LIKE '%The Code of Criminal Procedure, 1973%' OR act_name LIKE '%Indian Evidence Act%');
-    ''')
+    # conn = await asyncpg.connect(host="legalscraperserver.postgres.database.azure.com",
+    #                              database="postgres",
+    #                              user="tejasw",
+    #                              password="Password1234",
+    #                              port=5432,)
+    # row = await conn.fetch(
+    #     '''SELECT sections, act_name, text
+    # FROM acts
+    # WHERE sections IS NOT NULL
+    # AND(act_name LIKE '%The Indian Penal Code, 1860%' OR act_name LIKE '%The Code of Criminal Procedure, 1973%' OR act_name LIKE '%Indian Evidence Act%');
+    # ''')
 
-    def remove_between_periods(sentence):
-        # Define a regular expression pattern to match text between two periods
-        pattern = r'\.(.*?)\.'
+    # def remove_between_periods(sentence):
+    #     # Define a regular expression pattern to match text between two periods
+    #     pattern = r'\.(.*?)\.'
 
-        # Use re.sub to replace the matched substring with an empty string
-        modified_sentence = re.sub(pattern, '.', sentence)
+    #     # Use re.sub to replace the matched substring with an empty string
+    #     modified_sentence = re.sub(pattern, '.', sentence)
 
-        return modified_sentence
+    #     return modified_sentence
 
-    def preprocess_text(text):
-        text = re.sub(r'(?:\n\s*)+', '\n', text)
-        text = re.sub(r'\*', '', text)
+    # def preprocess_text(text):
+    #     text = re.sub(r'(?:\n\s*)+', '\n', text)
+    #     text = re.sub(r'\*', '', text)
 
-        return text
+    #     return text
 
     # for act in row:
     #     for section in act['sections']:
@@ -75,48 +80,48 @@ async def on_chat_start():
     #             'content':preprocess_text(d)
     #         })
 
-    def process(act):
-        data = []
-        for section in act['sections']:
-            json_data = json.loads(section)
-            # if 'omitted.' in json_data['section_name'].lower():
-            # continue
-            json_data['section_name'] = f"{remove_between_periods(json_data['section_name'])} of {act['act_name'].replace(',','')}"
-            d = json_data['section_name'] + ' : ' + json_data['text']
-            data.append({
-                'name': json_data['section_name'],
-                'content': preprocess_text(d),
-                # 'section_name': json_data['section_name'],
-            })
-        return data
+    # def process(act):
+    #     data = []
+    #     for section in act['sections']:
+    #         json_data = json.loads(section)
+    #         # if 'omitted.' in json_data['section_name'].lower():
+    #         # continue
+    #         json_data['section_name'] = f"{remove_between_periods(json_data['section_name'])} of {act['act_name'].replace(',','')}"
+    #         d = json_data['section_name'] + ' : ' + json_data['text']
+    #         data.append({
+    #             'name': json_data['section_name'],
+    #             'content': preprocess_text(d),
+    #             # 'section_name': json_data['section_name'],
+    #         })
+    #     return data
 
-    ipc_loader = [Document(page_content=s['content'], metadata={
-        'name': s['name']}) for s in process(row[0])]
-    iea_loader = [Document(page_content=s['content'], metadata={
-        'name': s['name']}) for s in process(row[1])]
-    crpc_loader = [Document(page_content=s['content'], metadata={
-                            'name': s['name']}) for s in process(row[2])]
+    # ipc_loader = [Document(page_content=s['content'], metadata={
+    #     'name': s['name']}) for s in process(row[0])]
+    # iea_loader = [Document(page_content=s['content'], metadata={
+    #     'name': s['name']}) for s in process(row[1])]
+    # crpc_loader = [Document(page_content=s['content'], metadata={
+    #                         'name': s['name']}) for s in process(row[2])]
 
-    with open('bsa.json', 'r') as bsa:
-        bsa_loader = [
-            Document(
-                page_content=f"{s['section_name']} of Bharatiya Sakshya Adhiniyam(BSA): {s['content']}",
-                metadata={
-                    'name': f"{s['section_name']} of Bharatiya Sakshya Adhiniyam(BSA)"}) for s in json.load(bsa)]
+    # with open('bsa.json', 'r') as bsa:
+    #     bsa_loader = [
+    #         Document(
+    #             page_content=f"{s['section_name']} of Bharatiya Sakshya Adhiniyam(BSA): {s['content']}",
+    #             metadata={
+    #                 'name': f"{s['section_name']} of Bharatiya Sakshya Adhiniyam(BSA)"}) for s in json.load(bsa)]
 
-    with open('bns.json', 'r') as bns:
-        bns_loader = [
-            Document(
-                page_content=f"{s['section_name']} of Bharatiya Nyaya Sanhita(BNS): {s['content']}",
-                metadata={
-                    'name': f"{s['section_name']} of Bharatiya Nyaya Sanhita(BNS)"}) for s in json.load(bns)]
+    # with open('bns.json', 'r') as bns:
+    #     bns_loader = [
+    #         Document(
+    #             page_content=f"{s['section_name']} of Bharatiya Nyaya Sanhita(BNS): {s['content']}",
+    #             metadata={
+    #                 'name': f"{s['section_name']} of Bharatiya Nyaya Sanhita(BNS)"}) for s in json.load(bns)]
 
-    with open('bnss.json', 'r') as bnss:
-        bnss_loader = [
-            Document(
-                page_content=f"{s['section_name']} of Bharatiya Nagarik Suraksha Sanhita(BNSS): {s['content']}",
-                metadata={
-                    'name': f"{s['section_name']} of Bharatiya Nagarik Suraksha Sanhita(BNSS)"}) for s in json.load(bnss)]
+    # with open('bnss.json', 'r') as bnss:
+    #     bnss_loader = [
+    #         Document(
+    #             page_content=f"{s['section_name']} of Bharatiya Nagarik Suraksha Sanhita(BNSS): {s['content']}",
+    #             metadata={
+    #                 'name': f"{s['section_name']} of Bharatiya Nagarik Suraksha Sanhita(BNSS)"}) for s in json.load(bnss)]
 
     model_name = "BAAI/bge-base-en-v1.5"
     encode_kwargs = {'normalize_embeddings': True}
@@ -130,58 +135,34 @@ async def on_chat_start():
     # Here is the nmew embeddings being used
     embedding = model_norm
 
-    ipc_db = Qdrant.from_documents(
-        ipc_loader,
-        model_norm,
-        url="https://70dd04d7-f233-4954-8e4d-54c848c8d13b.us-east4-0.gcp.cloud.qdrant.io:6333",
-        api_key="xVLVqK38Xf5HYBM4GaKrGy0Csorj1Gc9YJdqn6DARiXD6ES5SuMrfA",
-        prefer_grpc=True,
-        collection_name="ipc",
+    ipc_db = Qdrant(
+        client=client, collection_name="ipc",
+        embeddings=model_norm
     )
 
-    crpc_db = Qdrant.from_documents(
-        crpc_loader,
-        model_norm,
-        url="https://70dd04d7-f233-4954-8e4d-54c848c8d13b.us-east4-0.gcp.cloud.qdrant.io:6333",
-        api_key="xVLVqK38Xf5HYBM4GaKrGy0Csorj1Gc9YJdqn6DARiXD6ES5SuMrfA",
-        prefer_grpc=True,
-        collection_name="crpc",
+    crpc_db = Qdrant(
+        client=client, collection_name="crpc",
+        embeddings=model_norm
     )
 
-    iea_db = Qdrant.from_documents(
-        iea_loader,
-        model_norm,
-        url="https://70dd04d7-f233-4954-8e4d-54c848c8d13b.us-east4-0.gcp.cloud.qdrant.io:6333",
-        api_key="xVLVqK38Xf5HYBM4GaKrGy0Csorj1Gc9YJdqn6DARiXD6ES5SuMrfA",
-        prefer_grpc=True,
-        collection_name="iea",
+    iea_db = Qdrant(
+        client=client, collection_name="iea",
+        embeddings=model_norm
     )
 
-    bns_db = Qdrant.from_documents(
-        bns_loader,
-        model_norm,
-        url="https://70dd04d7-f233-4954-8e4d-54c848c8d13b.us-east4-0.gcp.cloud.qdrant.io:6333",
-        api_key="xVLVqK38Xf5HYBM4GaKrGy0Csorj1Gc9YJdqn6DARiXD6ES5SuMrfA",
-        prefer_grpc=True,
-        collection_name="bns",
+    bnss_db = Qdrant(
+        client=client, collection_name="bnss",
+        embeddings=model_norm
     )
 
-    bsa_db = Qdrant.from_documents(
-        bsa_loader,
-        model_norm,
-        url="https://70dd04d7-f233-4954-8e4d-54c848c8d13b.us-east4-0.gcp.cloud.qdrant.io:6333",
-        api_key="xVLVqK38Xf5HYBM4GaKrGy0Csorj1Gc9YJdqn6DARiXD6ES5SuMrfA",
-        prefer_grpc=True,
-        collection_name="bsa",
+    bsa_db = Qdrant(
+        client=client, collection_name="bsa",
+        embeddings=model_norm
     )
 
-    bnss_db = Qdrant.from_documents(
-        bnss_loader,
-        model_norm,
-        url="https://70dd04d7-f233-4954-8e4d-54c848c8d13b.us-east4-0.gcp.cloud.qdrant.io:6333",
-        api_key="xVLVqK38Xf5HYBM4GaKrGy0Csorj1Gc9YJdqn6DARiXD6ES5SuMrfA",
-        prefer_grpc=True,
-        collection_name="bnss",
+    bns_db = Qdrant(
+        client=client, collection_name="bns",
+        embeddings=model_norm
     )
 
     prefix = """You are Votum, an expert legal assistant with extensive knowledge about Indian law. Your task is to respond with the description of the section if provided with a section number OR respond with section number if given a description.
