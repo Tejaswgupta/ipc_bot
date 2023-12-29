@@ -290,8 +290,6 @@ You have access to the following tools:
 
 @cl.on_message
 async def main(message: cl.Message):
-
     agent = cl.user_session.get("agent")  # type: AgentExecutor
-
-    cb = cl.LangchainCallbackHandler(stream_final_answer=True)
+    cb = cl.AsyncLangchainCallbackHandler(stream_final_answer=True)
     await cl.make_async(agent.run)(message.content, callbacks=[cb])
