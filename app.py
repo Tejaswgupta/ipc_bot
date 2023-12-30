@@ -33,21 +33,20 @@ from langchain.vectorstores import FAISS, Qdrant
 from langchain_core.documents import Document
 from pydantic import BaseModel, Field
 
-
-@cl.set_chat_profiles
-async def chat_profile():
-    return [
-        cl.ChatProfile(
-            name="GPT-3.5",
-            markdown_description="The underlying LLM model is **GPT-3.5**.",
-            icon="https://picsum.photos/200",
-        ),
-        cl.ChatProfile(
-            name="GPT-4",
-            markdown_description="The underlying LLM model is **GPT-4**.",
-            icon="https://picsum.photos/250",
-        ),
-    ]
+# @cl.set_chat_profiles
+# async def chat_profile():
+#     return [
+#         cl.ChatProfile(
+#             name="GPT-3.5",
+#             markdown_description="The underlying LLM model is **GPT-3.5**.",
+#             icon="https://picsum.photos/200",
+#         ),
+#         cl.ChatProfile(
+#             name="GPT-4",
+#             markdown_description="The underlying LLM model is **GPT-4**.",
+#             icon="https://picsum.photos/250",
+#         ),
+#     ]
 
 
 @cl.on_chat_start
@@ -144,7 +143,7 @@ async def on_chat_start():
 
     model_norm = HuggingFaceBgeEmbeddings(
         model_name=model_name,
-        model_kwargs={'device': 'cuda'},
+        model_kwargs={'device':  'cuda'},
         encode_kwargs=encode_kwargs
     )
 
@@ -215,7 +214,7 @@ You have access to the following tools:
     def search_iea(query: str) -> str:
         """Query tool to search and return the relevant The Indian Evidence Act (IEA) section name and description."""
         retriever = iea_db.as_retriever(
-            search_type='similarity', search_kwargs={"k": 2})
+            search_type='similarity', search_kwargs={"k": 4})
         res = retriever.get_relevant_documents(query)
         return res
 
@@ -223,7 +222,7 @@ You have access to the following tools:
     def search_crpc(query: str) -> str:
         """Query tool to search and return the relevant Code of Criminal Procedure (CRPC) section name and description."""
         retriever = crpc_db.as_retriever(
-            search_type='similarity', search_kwargs={"k": 2})
+            search_type='similarity', search_kwargs={"k": 4})
         res = retriever.get_relevant_documents(query)
         return res
 
@@ -231,7 +230,7 @@ You have access to the following tools:
     def search_bsa(query: str) -> str:
         """Query tool to search and return the relevant Bharatiya Sakshya Adhiniyam(BSA) section name and description."""
         retriever = bsa_db.as_retriever(
-            search_type='similarity', search_kwargs={"k": 2})
+            search_type='similarity', search_kwargs={"k": 4})
         res = retriever.get_relevant_documents(query)
         return res
 
@@ -239,7 +238,7 @@ You have access to the following tools:
     def search_bns(query: str) -> str:
         """Query tool to search and return the relevant Bharatiya Nyaya Sanhita (BNS) section name and description."""
         retriever = bns_db.as_retriever(
-            search_type='similarity', search_kwargs={"k": 2})
+            search_type='similarity', search_kwargs={"k": 4})
         res = retriever.get_relevant_documents(query)
         return res
 
@@ -247,7 +246,7 @@ You have access to the following tools:
     def search_bnss(query: str) -> str:
         """Query tool to search and return the relevant Bharatiya Nagarik Suraksha Sanhita Sanhita(BNSS) section name and description."""
         retriever = bnss_db.as_retriever(
-            search_type='similarity', search_kwargs={"k": 2})
+            search_type='similarity', search_kwargs={"k": 4})
         res = retriever.get_relevant_documents(query)
         return res
 
@@ -263,11 +262,12 @@ You have access to the following tools:
     memory = ConversationBufferMemory(memory_key="chat_history")
     readonlymemory = ReadOnlySharedMemory(memory=memory)
 
-    chat_profile = cl.user_session.get("chat_profile")
+    # chat_profile = cl.user_session.get("chat_profile")
 
-    print(chat_profile)
+    # print(chat_profile)
     summary_chain = LLMChain(
-        llm=mistral_llm if chat_profile == 'GPT-3.5' else openai_llm,
+        # llm=mistral_llm if chat_profile == 'GPT-3.5' else openai_llm,
+        llm=openai_llm,
         prompt=prompt,
         verbose=True,
         memory=readonlymemory,
@@ -300,8 +300,11 @@ You have access to the following tools:
         input_variables=["input", "chat_history", "agent_scratchpad"],
     )
 
-    llm_chain = LLMChain(llm=mistral_llm if chat_profile ==
-                         'GPT-3.5' else openai_llm, prompt=prompt)
+    llm_chain = LLMChain(
+        # llm=mistral_llm if chat_profile =='GPT-3.5' else openai_llm,
+        llm=openai_llm,
+        prompt=prompt,
+    )
     agent = ZeroShotAgent(llm_chain=llm_chain, tools=tools, verbose=True)
     agent_chain = AgentExecutor.from_agent_and_tools(
         agent=agent, tools=tools, verbose=True, memory=memory
