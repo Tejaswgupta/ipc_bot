@@ -1,9 +1,0 @@
-[UI]
-
-name = "Votum"
-
-# The default value for the expand messages settings.
-default_expand_messages = false
-
-# Hide the chain of thought details from the user in the UI.
-hide_cot = true

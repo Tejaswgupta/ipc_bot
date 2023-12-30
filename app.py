@@ -34,6 +34,22 @@ from langchain_core.documents import Document
 from pydantic import BaseModel, Field
 
 
+@cl.set_chat_profiles
+async def chat_profile():
+    return [
+        cl.ChatProfile(
+            name="GPT-3.5",
+            markdown_description="The underlying LLM model is **GPT-3.5**.",
+            icon="https://picsum.photos/200",
+        ),
+        cl.ChatProfile(
+            name="GPT-4",
+            markdown_description="The underlying LLM model is **GPT-4**.",
+            icon="https://picsum.photos/250",
+        ),
+    ]
+
+
 @cl.on_chat_start
 async def on_chat_start():
     client = qdrant_client.QdrantClient(
@@ -132,9 +148,6 @@ async def on_chat_start():
         encode_kwargs=encode_kwargs
     )
 
-    # Here is the nmew embeddings being used
-    embedding = model_norm
-
     ipc_db = Qdrant(
         client=client, collection_name="ipc",
         embeddings=model_norm
@@ -178,14 +191,17 @@ Steps overview:
 - Analyze and respond appropirately.
 You have access to the following tools:
 """
-    llm = AzureChatOpenAI(
+    openai_llm = AzureChatOpenAI(
         # model="gpt-4-turbo",
         deployment_name="gpt-4-turbo",
-        api_key="4e19bb52d70748ec89a517a52303243c",
+        api_key="70ecbc470b4942c6971bf2109a0003b2",
         azure_endpoint="https://votum.openai.azure.com/",
         api_version="2023-07-01-preview",
         streaming=True,
     )
+
+    mistral_llm = ChatOpenAI(openai_api_base='http://20.124.240.6:8083/v1',
+                             openai_api_key='none', model='TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ', temperature=0.7)
 
     @tool('search_ipc')
     def search_ipc(query: str) -> str:
@@ -246,8 +262,12 @@ You have access to the following tools:
         input_variables=["input", "chat_history"], template=template)
     memory = ConversationBufferMemory(memory_key="chat_history")
     readonlymemory = ReadOnlySharedMemory(memory=memory)
+
+    chat_profile = cl.user_session.get("chat_profile")
+
+    print(chat_profile)
     summary_chain = LLMChain(
-        llm=llm,
+        llm=mistral_llm if chat_profile == 'GPT-3.5' else openai_llm,
         prompt=prompt,
         verbose=True,
         memory=readonlymemory,
@@ -280,7 +300,8 @@ You have access to the following tools:
         input_variables=["input", "chat_history", "agent_scratchpad"],
     )
 
-    llm_chain = LLMChain(llm=llm, prompt=prompt)
+    llm_chain = LLMChain(llm=mistral_llm if chat_profile ==
+                         'GPT-3.5' else openai_llm, prompt=prompt)
     agent = ZeroShotAgent(llm_chain=llm_chain, tools=tools, verbose=True)
     agent_chain = AgentExecutor.from_agent_and_tools(
         agent=agent, tools=tools, verbose=True, memory=memory
@@ -291,5 +312,7 @@ You have access to the following tools:
 @cl.on_message
 async def main(message: cl.Message):
     agent = cl.user_session.get("agent")  # type: AgentExecutor
-    cb = cl.AsyncLangchainCallbackHandler(stream_final_answer=True)
+    answer_prefix_tokens = ["FINAL", "ANSWER"]
+    cb = cl.AsyncLangchainCallbackHandler(
+        stream_final_answer=True, answer_prefix_tokens=answer_prefix_tokens,)
     await cl.make_async(agent.run)(message.content, callbacks=[cb])
