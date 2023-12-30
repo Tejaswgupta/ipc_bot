@@ -197,7 +197,7 @@ You have access to the following tools:
         api_key="70ecbc470b4942c6971bf2109a0003b2",
         azure_endpoint="https://votum.openai.azure.com/",
         api_version="2023-07-01-preview",
-        streaming=True,
+        # streaming=True,
     )
 
     mistral_llm = ChatOpenAI(openai_api_base='http://20.124.240.6:8083/v1',
