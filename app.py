@@ -4,6 +4,7 @@ import re
 import asyncpg
 import chainlit as cl
 import qdrant_client
+import torch
 from langchain.agents import (AgentExecutor, AgentType, Tool, ZeroShotAgent,
                               initialize_agent)
 from langchain.agents.agent_toolkits import (
@@ -143,7 +144,8 @@ async def on_chat_start():
 
     model_norm = HuggingFaceBgeEmbeddings(
         model_name=model_name,
-        model_kwargs={'device':  'cuda'},
+        model_kwargs={'device': 'cuda' if torch.cuda.is_available()
+                      else 'mps'},
         encode_kwargs=encode_kwargs
     )
 
@@ -182,12 +184,14 @@ Remember the following while answering any query:
 - The Bharatiya Sakshya Adhiniyam (BSA) will be replacing The Indian Evidence Act (IEA).
 - The Bharatiya Nyaya Sanhita (BNS) will be replacing The Indian Penal Code (IPC).
 - The Bharatiya Nagarik Suraksha Sanhita Sanhita(BNSS) will be replacing the Code of Criminal Procedure (CrPC).
-Whenever asked regarding about a section of an act that has been replaced , first lookup the defination using it's respective tool , followed by searching the returned description with the newer alternative's tool.
+Whenever asked regarding about a section of an act that has been replaced , first lookup the definition using it's respective tool , followed by searching the returned description with the newer alternative's tool. If asked about a query, only use one of the newer act tools.
+-----
 Steps overview:
 - Query: IPC Section 289
 - Use search_ipc with input IPC Section 289
 - Invoke search_bns tool with the description received from the last step.
 - Analyze and respond appropirately.
+-----
 You have access to the following tools:
 """
     openai_llm = AzureChatOpenAI(
